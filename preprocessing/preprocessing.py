@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from .fit_in_memory import fit_in_memory
+from .fit_in_memory import _fit_in_memory
 from .noise_removal import noise_removal
 import spectral.io.envi as envi
 from ..hyperspectral_image import read_image
 import numpy as np
+import os
+
 
 
 class preprocessing:
@@ -17,7 +19,7 @@ class preprocessing:
         self._save_path = save_directory
         self._image_name = img_path.split('/')[-1].split('.')[0]
         
-        partition = fit_in_memory(self._img_path, available_memory_gb=self._max)
+        partition = _fit_in_memory(self._img_path, available_memory_gb=self._max)
         
         self._list_of_partitions = partition.patitions()
         self._total_partitions  = len(self._list_of_partitions)
@@ -44,11 +46,11 @@ class preprocessing:
         
         img  = read_image(self._img_path)
 
-        noise_rem = noise_removal(read_image,min_threshold=min_reflectance, max_threshold=max_reflectance)
+        noise_rem = noise_removal(img,min_threshold=min_reflectance, max_threshold=max_reflectance)
 
-        noisy_bands = noise_rem.show_noisy_bands_with_min_max()
+        noisy_bands = noise_rem.show_noisy_bands()
 
-        retained_bands = self._get_retained_bands(noisy_bands,np.arange(img.img_bands))
+        retained_bands = self._get_retained_bands(noisy_bands,img.img_bands)
                                 
         masking_pixel = [0.0 for i in range(len(retained_bands))]
 
@@ -57,7 +59,7 @@ class preprocessing:
             
             print('Partition : {} / {} running...'.format(index+1, self._total_partitions))
             
-            sub_image = img.sub_image()[each_partion[0]:each_partion[1],retained_bands]
+            sub_image = img.sub_image()[each_partion[0]:each_partion[1],:,retained_bands]
             
             for index_row, each_row in enumerate(sub_image):
                 
@@ -65,6 +67,10 @@ class preprocessing:
                         
                     if (each_pixel[0] == bad_reflectance_value) or (self._calculate_ndvi(each_pixel[NIR],each_pixel[RED]) < ndvi_threshold) :
                         sub_image[index_row, index_pixel] = masking_pixel
+            
+                    
+            if not os.path.exists(self._save_path):
+                os.makedirs(self._save_path)
                         
             envi.save_image(self._save_path + self._image_name + '_part_' + str(index+1)+'.hdr', sub_image,force=True,interleave='bil',ext=None)
             

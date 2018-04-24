@@ -5,7 +5,7 @@ from spectral import open_image
 import numpy as np
 
 
-class fit_in_memory:
+class _fit_in_memory:
     
     def __init__(self,img_path, available_memory_gb = 2 ):
         
