@@ -42,28 +42,32 @@ class preprocessing:
 
         return  list(set(np.arange(total_bands)) - set(noisy_bands))
     
-    def perform(self, ndvi_threshold = 125, bad_reflectance_value = -9999. , NIR = 90 , RED = 55, min_reflectance = 0, max_reflectance = 1  ):
+    def perform(self, ndvi_threshold = 125, bad_reflectance_value = -9999. , NIR = 90 , RED = 55, min_threshold = 0, max_threshold = 1, noisy_bands=None  ):
         
         img  = read_image(self._img_path)
 
-        noise_rem = noise_removal(img,min_threshold=min_reflectance, max_threshold=max_reflectance)
-
-        noisy_bands = noise_rem.show_noisy_bands()
+        if noisy_bands == None:
+            
+            noise_rem = noise_removal(img,min_threshold=min_threshold, max_threshold=max_threshold)
+            
+            noisy_bands = noise_rem.show_noisy_bands()
 
         retained_bands = self._get_retained_bands(noisy_bands,img.img_bands)
                                 
         masking_pixel = [0.0 for i in range(len(retained_bands))]
 
+        print('--------------- Performing Preprocessing ---------------\n')
         
         for index,each_partion in enumerate(self._list_of_partitions):
             
-            print('Partition : {} / {} running...'.format(index+1, self._total_partitions))
+            print('\nPartition : {} / {} running...\n'.format(index+1, self._total_partitions))
             
             sub_image = img.sub_image()[each_partion[0]:each_partion[1],:,retained_bands]
-            
+                        
             for index_row, each_row in enumerate(sub_image):
                 
                 for index_pixel, each_pixel in enumerate(each_row):
+                    
                         
                     if (each_pixel[0] == bad_reflectance_value) or (self._calculate_ndvi(each_pixel[NIR],each_pixel[RED]) < ndvi_threshold) :
                         sub_image[index_row, index_pixel] = masking_pixel
@@ -78,5 +82,6 @@ class preprocessing:
             
         
         print('\nPreprocessing completed. Output directory : '+self._save_path)
+        print('\n\n---------------------------------------------------------')
 
  

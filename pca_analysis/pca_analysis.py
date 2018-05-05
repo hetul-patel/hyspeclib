@@ -12,12 +12,13 @@ import pandas as pd
 
 class pca_analysis:
     
-    def __init__(self, image_directory_path=None ):
+    def __init__(self, image_directory_path=None, save_dir = None ):
         
         if image_directory_path!=None:
             self._image_directory_path = image_directory_path
             self._processed_images = glob.glob(image_directory_path+'**/**.hdr',recursive=True)
             self._total_images = len(self._processed_images)
+            self._save_dir = save_dir
             print('Total {} images found in directory.'.format(self._total_images))
     
     def _fetch_pca(self, image_path):
@@ -43,7 +44,7 @@ class pca_analysis:
         eigen_values = principal_component_analysis.eigenvalues
 
 
-        with open(self._image_directory_path+image_name+'_pca.csv', mode='w') as file:
+        with open(self._save_dir+image_name+'_pca.csv', mode='w') as file:
             
             for pc_number in range(nbands):
                 
@@ -59,10 +60,12 @@ class pca_analysis:
     def perform(self):
         
         try :
+            
+            print('\n\n---------------- Computing PCA Statistics -------------------\n')
 
             for index,image in enumerate(self._processed_images):
     
-                print('Current image {}/{}'.format( index+1, self._total_images ))
+                print('\nCurrent image {}/{}\n'.format( index+1, self._total_images ))
                 
                 image_name = image.split('/')[-1].split('.')[0]
     
@@ -73,8 +76,13 @@ class pca_analysis:
                 del temp_pca_analysis
             
             print('Eigen Values and Eigen Vectors are saved successfully at : '+self._image_directory_path)
+    
+            print('\n\n-------------------------------------------------------------\n')
         except:
             print('Please pass preprocessed images directory in pca_analysis(?) as parameter\nor try again.' )
+            print('\n\n-------------------------------------------------------------\n')
+                  
+            
           
     
     # Exploration
