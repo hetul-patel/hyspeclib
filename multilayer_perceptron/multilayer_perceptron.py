@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split as ttspilt
 
 class multilayer_perceptron:
     """docstring for multilayer_perceptron."""
-    def __init__(self, n_nodes=[392,150,100,50,11],available_memory_gb=2,learning_rate=0.01,batch_size=32,n_iter=50):
+    def __init__(self, n_nodes=None,available_memory_gb=2,learning_rate=0.01,batch_size=32,n_iter=50):
         # Network Parameters
         self._n_layer = len(n_nodes)-1
 
@@ -77,11 +77,10 @@ class multilayer_perceptron:
         self._accuracy = tf.reduce_mean(tf.cast(self._correct_pred, np.float32))
         self._conf_mat= tf.confusion_matrix(tf.argmax(self._pred,1),tf.argmax(self._y,1))
 
-        #use model for classifying image
-        #threshold_classification = lambda v : tf.argmax(v,1) if (tf.reduce_max(v,1) > 0.5) else self.n_classes
+        # Classification
+        self._classified = self._pred_prob
+        self._classified_aug = tf.argmax(self._pred,1)
 
-        #self.classified = threshold_classification(self.pred_prob)
-        self._classified = tf.argmax(self._pred,1)
 
         self._init = tf.global_variables_initializer()
         self._saver = tf.train.Saver()
@@ -96,14 +95,49 @@ class multilayer_perceptron:
         self._short_classes = titles
         self._n_classes = self._n_classes
 
-    def _train_validation_split(self,train=0.7,reduced_bands=False,not_selected=[]):
+    def train_test_balanced_data(self, dataset_path, titles, array_of_pixels_per_class = []):
+
+        if len(array_of_pixels_per_class) < self._n_classes:
+            print('Please specify count of training site pixels for each class.')
+            return
+
+        x = array_of_pixels_per_class
+
+        cols = list([str(i) for i in range(self._n_input)])
+        cols.append('label')
+
+        self._dataset = pd.read_csv(dataset_path,names=cols)
+
+        self._data_set_array = list()
+
+        self._test_data_set_array = list()
+
+        for i in range(self._dataset.shape[0]):
+
+            pixel = self._dataset.iloc[i]
+
+            if x[int(pixel[self._n_input])-1] > 0 :
+                x[int(pixel[self._n_input])-1] -= 1
+
+                self._data_set_array.append(np.array(pixel))
+            else:
+                self._test_data_set_array.append(np.array(pixel))
+
+        self._short_classes = titles
+        self._n_classes = self._n_classes
+
+
+
+    def _train_validation_split( self, train=0.7, reduced_bands=False, not_selected=[] ):
+
         """ K fold cross validation data function """
 
+        np.random.seed(0)
         np.random.shuffle(self._data_set_array)
 
         #training and validation_set
-        training_data_set = self._data_set_array[ 0 : int(train*len(self._data_set_array)) ]
-        validation_data_set = self._data_set_array[ int(train*len(self._data_set_array)) : len(self._data_set_array)  ]
+        training_data_set = np.array(self._data_set_array[ 0 : int(train*len(self._data_set_array)) ])
+        validation_data_set = np.array(self._data_set_array[ int(train*len(self._data_set_array)) : len(self._data_set_array)  ])
 
         # validation inputs
         validation_labels =  np.asarray(pd.DataFrame(validation_data_set)[self._n_input])
@@ -130,7 +164,9 @@ class multilayer_perceptron:
 
         return train_instances, train_one_hot_vectors, validation_instances, validation_one_hot_vectors
 
-    def _randomize_test_data(self,all_class=False,reduced_bands=False,not_selected=[]):
+    def _randomize_test_data(self,reduced_bands=False,not_selected=[]):
+
+        np.random.seed(0)
 
         data = self._test_data_set_array
         class_num = self._n_classes
@@ -218,7 +254,7 @@ class multilayer_perceptron:
                     if early_stopping == True and flag == False:
                         break
 
-                new_test_instances, new_test_one_hot_vectors = self._randomize_test_data(reduced_bands=reduced_bands,not_selected=not_selected)
+                #new_test_instances, new_test_one_hot_vectors = self._randomize_test_data(reduced_bands=reduced_bands,not_selected=not_selected)
                 new_train_instances, new_train_one_hot_vectors, new_validation_instances, new_validation_one_hot_vectors = self._train_validation_split(train=0.7,reduced_bands=reduced_bands,not_selected=not_selected)
 
 
@@ -252,9 +288,10 @@ class multilayer_perceptron:
 
 
         print('\nTraining is completed, best model is saved at: ',best_model_path)
-        print('\n\n-------------------------------------------------------\n\n')
 
-        return {'Overall training acc : ' : avg_train/iterations,'Overall validation acc : ' : avg_validation/iterations}
+        print('\n Overall training acc : {:.4f} | Overall validation acc : {:.4f}'.format(avg_train/iterations,avg_validation/iterations))
+
+        print('\n\n-------------------------------------------------------\n\n')
 
     def _kappa_evaluation(self,confusion_mat):
 
@@ -275,51 +312,56 @@ class multilayer_perceptron:
         short_classes = self._short_classes
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
 
-        try:
-            with tf.Session() as sess:
-                self._saver.restore(sess,path)
+        #try:
+        with tf.Session() as sess:
+            self._saver.restore(sess,path)
 
-                new_train_instances, new_train_one_hot_vectors, _, _ = self._train_validation_split(train=0.7,reduced_bands=reduced_bands,not_selected=not_selected)
-
-
-                training_accuracy = sess.run(self._accuracy, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
-
-                confusion_matrix = sess.run(self._conf_mat, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
-
-                total_sample = [np.sum(confusion_matrix,axis=0)]
+            new_train_instances, new_train_one_hot_vectors, _, _ = self._train_validation_split(train=0.7,reduced_bands=reduced_bands,not_selected=not_selected)
 
 
-                print('\n----------Training site validation of model {}----------\n'.format(path.split('/')[-1]))
+            training_accuracy = sess.run(self._accuracy, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
 
-                print('Total training samples\n')
-                #print(total_sample)
-                print(pd.DataFrame(total_sample,columns=short_classes,index=['Total samples']))
+            confusion_matrix = sess.run(self._conf_mat, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
 
-                print("\n1. Overall accuracy : {:.4f}\n".format(training_accuracy))
+            total_sample = [np.sum(confusion_matrix,axis=0)]
 
-                print('2. Confusion matrix: columns are prediction labels and the rows are the GT data\n')
 
-                print(pd.DataFrame(confusion_matrix,columns=short_classes,index=short_classes))
+            print('\n----------Training site validation of model {}----------\n'.format(path.split('/')[-1]))
 
-                class_wise_acc = list()
+            print('Total training samples\n')
+            #print(total_sample)
+            print(pd.DataFrame(total_sample,columns=short_classes,index=['Total samples']))
 
-                for i in range(len(confusion_matrix)):
+            print("\n1. Overall accuracy : {:.4f}\n".format(training_accuracy))
+
+            print('2. Confusion matrix: columns are prediction labels and the rows are the GT data\n')
+
+            print(pd.DataFrame(confusion_matrix,columns=short_classes,index=short_classes))
+
+            class_wise_acc = list()
+
+            for i in range(len(confusion_matrix)):
+                if np.sum(confusion_matrix[:,i]) == 0:
+                    producer_acc = 1
+                else:
                     producer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[:,i]),decimals=3)
+                if  np.sum(confusion_matrix[i]) == 0:
+                    consumer_acc = 0
+                else:
                     consumer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[i]),decimals=3)
 
-                    class_wise_acc.append([producer_acc,consumer_acc])
+                class_wise_acc.append([producer_acc,consumer_acc])
+            print('\n3. Producer accuracy and Consumer accuracy:\n')
 
-                print('\n3. Producer accuracy and Consumer accuracy:\n')
+            print(pd.DataFrame(class_wise_acc,columns=(['Producer/Class acc','Consumer acc']),index=short_classes))
 
-                print(pd.DataFrame(class_wise_acc,columns=(['Producer/Class acc','Consumer acc']),index=short_classes))
-
-                print('\n4. Average accuracy : {:.4f}'.format(np.sum(np.array(class_wise_acc),axis=0)[0]/len(class_wise_acc)))
-                try:
-                    print('\n5. Kapp cofficient : {:.4f}\n'.format( self._kappa_evaluation(confusion_matrix)))
-                except:
-                    print('\n5. Kapp cofficient : undefined')
-        except:
-           print('Error : Please close any existing Tensorflow session and try again or restart Python Kernel')
+            print('\n4. Average accuracy : {:.4f}'.format(np.sum(np.array(class_wise_acc),axis=0)[0]/len(class_wise_acc)))
+            try:
+                print('\n5. Kapp cofficient : {:.4f}\n'.format( self._kappa_evaluation(confusion_matrix)))
+            except:
+                print('\n5. Kapp cofficient : undefined')
+        #except:
+           #print('Error : Please close any existing Tensorflow session and try again or restart Python Kernel')
 
     def blindsite_validation(self,path,reduced_bands=False, selected=[]):
         """ Constructs confusion matrix by trained model for blind sample"""
@@ -356,8 +398,14 @@ class multilayer_perceptron:
                 class_wise_acc = list()
 
                 for i in range(len(confusion_matrix)):
-                    producer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[:,i]),decimals=3)
-                    consumer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[i]),decimals=3)
+                    if np.sum(confusion_matrix[:,i]) == 0:
+                        producer_acc = 1
+                    else:
+                        producer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[:,i]),decimals=3)
+                    if  np.sum(confusion_matrix[i]) == 0:
+                        consumer_acc = 0
+                    else:
+                        consumer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[i]),decimals=3)
 
                     class_wise_acc.append([producer_acc,consumer_acc])
 
@@ -424,8 +472,10 @@ class multilayer_perceptron:
 
         return list(np.sort(top_bands))
 
-    def select_best_bands(self,model_path,reduction_percentage = 0.21):
+    def select_best_bands(self,model_path, reduced_bands = 40):
         """ Returns selected, not selected bands """
+
+        reduction_percentage = reduced_bands / self._n_input
 
         weights_saved = None
         with tf.Session() as sess:
@@ -466,7 +516,7 @@ class multilayer_perceptron:
 
             file.write(str(pixel[i])+',')
 
-        file.write(str(class_index+1)+'\n')
+        file.write(str(int(class_index+1))+'\n')
 
     def _augmentation_mask(self, file, class_index, img_cols):
 
@@ -476,6 +526,14 @@ class multilayer_perceptron:
         else:
             file.write(str(class_index+1)+'\n')
             self._tmp_count = 0
+
+    def _assign_class(self, prediction):
+
+        max_value = np.max(prediction)
+        if max_value > self._min_prob:
+            return np.argmax(prediction)
+        else:
+            return self._n_classes
 
     def _train_augmentation(self,image_path, model_path, correct_array, threshold=0.05, not_selected = [], save_data=False,save_directory=''):
 
@@ -496,7 +554,7 @@ class multilayer_perceptron:
         img_cols = img.img_width
 
         if save_data==True:
-            out_file = open(save_directory+'augmented_dataset.csv','w')
+            out_file =self._outfile
             augmentation_mask_file = open(save_directory+image_name+'augmentation_mask.csv','w')
 
         print('\n--> Image : {} divided into {} partitions..\n'.format(image_path.split('/')[-1],self._total_partitions))
@@ -507,6 +565,8 @@ class multilayer_perceptron:
             self._saver.restore(self._sess,model_path)
 
             for index,each_partion in enumerate(self._list_of_partitions):
+
+                cnt = 0
 
                 print('\n---> Partition : {} / {} running... '.format(index+1, self._total_partitions))
 
@@ -520,7 +580,7 @@ class multilayer_perceptron:
 
                 masked_block[:,not_selected] = 0.
 
-                classified_block = self._sess.run(self._classified, feed_dict={self._x: masked_block} )
+                classified_block = self._sess.run(self._classified_aug, feed_dict={self._x: masked_block} )
 
                 for index,pixel in enumerate(masked_block):
                     if np.sum(pixel) == 0 :
@@ -529,41 +589,50 @@ class multilayer_perceptron:
 
                 for i in range(len(classified_block)):
 
-                    if np.mean(masked_block[i]) > 0 and self._validation(masked_block[i],self._class_wise_mean[classified_block[i]],t=threshold) == True:
-                        correct_array[classified_block[i]] +=1
+                    if np.mean(masked_block[i]) > 0 :
+                        if self._validation(masked_block[i],self._class_wise_mean[classified_block[i]],t=threshold) == True:
+                            correct_array[classified_block[i]] +=1
 
-                        if save_data == True:
-                            self._save_data_to_file(out_file,img_block[i],classified_block[i])
-                            self._augmentation_mask(augmentation_mask_file,classified_block[i],img_cols)
-                    elif save_data == True:
-                        self._augmentation_mask(augmentation_mask_file,classified_block[i],img_cols)
+                            if save_data == True:
+                                self._save_data_to_file(out_file,img_block[i],classified_block[i])
+                                self._augmentation_mask(augmentation_mask_file,classified_block[i],img_cols)
+                        elif save_data == True:
+                            if cnt <= 1000:
+                                cnt +=1
+                                self._save_data_to_file(out_file,img_block[i],self._n_classes)
+                            self._augmentation_mask(augmentation_mask_file,self._n_classes,img_cols)
+                    else:
+                        self._augmentation_mask(augmentation_mask_file,self._n_classes+1,img_cols)
 
                 del img_block
                 del masked_block
+
 
             self._sess.close()
 
             if save_data == True:
                 print('\n--> Image : {} completed and training data is augmented.\n'.format(image_path.split('/')[-1]))
-                out_file.close()
                 augmentation_mask_file.close()
 
             del img
 
             return correct_array
-        
+
         except:
            self._sess.close()
            print('Error : Try again after restrating kernel or try changing "Available Memory" ')
            return correct_array
 
 
-    def increase_train_data(self,images,model_path,threshold,save_data=False,save_directory='', selected=[]):
+    def increase_train_data(self,images,model_path,threshold,save_data=False,save_directory='', selected=[],merge_with_original=False):
 
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
 
         self._class_wise_mean = np.array(self._dataset.groupby(['label']).mean())
         self._class_wise_mean[:,not_selected] = 0.
+
+        self._outfile = open(save_directory+'augmented_dataset.csv','w')
+
 
 
 
@@ -579,26 +648,30 @@ class multilayer_perceptron:
                                                      save_directory=save_directory)
 
         print('-----------------------------------------------------------\n\n')
-        
-        
-        with open(save_directory+'augmented_dataset.csv', 'a') as f:
-            self._dataset.to_csv(f, header=False,index=False)
+
+        self._outfile.close()
+
+        if merge_with_original == True:
+            with open(save_directory+'augmented_dataset.csv', 'a') as f:
+                self._dataset.to_csv(f, header=False,index=False)
 
         print('Dataset is saved at: ',save_directory+'augmented_dataset.csv\n')
         print('Classified images are saved in {} ending with augmentation_mask.csv\n'.format(save_directory))
 
         return correct_array
 
-    def classify_image(self,image_path,model_path,save_path,selected=[]):
+    def classify_image(self,image_path,model_path,save_path, min_probability=0,selected=[]):
 
         print('-------------- Image classification is in pregress-----------------\n\n')
 
         img  = read_image(image_path)
 
+        self._min_prob = min_probability
+
         image_name = image_path.split('/')[-1].split('.')[0]
 
         self._tmp_count = 0
-        
+
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
 
 
@@ -638,7 +711,18 @@ class multilayer_perceptron:
 
                 masked_block[:,not_selected] = 0.
 
-                classified_block = self._sess.run(self._classified, feed_dict={self._x: masked_block} )
+                #classified_block = self._sess.run(self._classified, feed_dict={self._x: masked_block} )
+
+                pred_block = self._sess.run(self._classified, feed_dict={self._x: masked_block} )
+
+                classified_block = np.zeros(shape=(block_rows_count*img_cols),dtype=np.int32)
+
+                for i in range(len(classified_block)):
+                    classified_block[i] = self._assign_class(pred_block[i])
+                    #if i%100 == 0:
+                        #print(pred_block[i],self._assign_class(pred_block[i]) )
+
+                del pred_block
 
                 for index,pixel in enumerate(masked_block):
                     if np.sum(pixel) == 0 :

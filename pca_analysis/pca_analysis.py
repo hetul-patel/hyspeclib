@@ -75,7 +75,7 @@ class pca_analysis:
     
                 del temp_pca_analysis
             
-            print('Eigen Values and Eigen Vectors are saved successfully at : '+self._image_directory_path)
+            print('Eigen Values and Eigen Vectors are saved successfully at : '+self._save_dir)
     
             print('\n\n-------------------------------------------------------------\n')
         except:

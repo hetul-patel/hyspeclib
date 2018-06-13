@@ -42,7 +42,7 @@ class preprocessing:
 
         return  list(set(np.arange(total_bands)) - set(noisy_bands))
     
-    def perform(self, ndvi_threshold = 125, bad_reflectance_value = -9999. , NIR = 90 , RED = 55, min_threshold = 0, max_threshold = 1, noisy_bands=None  ):
+    def perform(self, ndvi_threshold = 125, data_ignore_value = -9999. , NIR = 90 , RED = 55, min_threshold = 0, max_threshold = 1, noisy_bands=None  ):
         
         img  = read_image(self._img_path)
 
@@ -63,13 +63,15 @@ class preprocessing:
             print('\nPartition : {} / {} running...\n'.format(index+1, self._total_partitions))
             
             sub_image = img.sub_image()[each_partion[0]:each_partion[1],:,retained_bands]
+
+            sub_image[:,noisy_bands] = 0
                         
             for index_row, each_row in enumerate(sub_image):
                 
                 for index_pixel, each_pixel in enumerate(each_row):
                     
                         
-                    if (each_pixel[0] == bad_reflectance_value) or (self._calculate_ndvi(each_pixel[NIR],each_pixel[RED]) < ndvi_threshold) :
+                    if (each_pixel[0] == data_ignore_value) or (self._calculate_ndvi(each_pixel[NIR],each_pixel[RED]) < ndvi_threshold) :
                         sub_image[index_row, index_pixel] = masking_pixel
             
                     

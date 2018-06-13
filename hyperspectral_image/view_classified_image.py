@@ -19,11 +19,12 @@ class view_classified_image:
             self._color_list = color_list
         else:
             tmp_list = ['#FFFFFF','#3BCBD5','#F7CD0A','#990033','#FF3399','#339900','#666600',
-                         '#000000','#0000FF','#CC7755','#FF8866','#FF9988','#EF5350','#F48FB1',
+                         '#000000','#0000FF','#CC7755','#FF8866','#FF9988','gray','#F48FB1',
                          '#880E4F','#E1BEE7','#9FA8DA','#1E88E5','#26A69A', '#69F0AE','#FDD835',
                          '#6D4C41','#546E7A','#B71C1C']
                          
             self._color_list = tmp_list[:self._max_class]
+            self._color_list[self._max_class-1] = '#C0C0C0'
         
         
         self._color_rgb = self._color_rgb_list(self._color_list)
@@ -32,12 +33,13 @@ class view_classified_image:
         if class_labels == None:
             class_labels = str(np.arange(self._max_class))
 
-        plt.figure(figsize=(self._max_class,1))
+        plt.figure(figsize=(self._max_class,1),dpi=100)
             
         try:
-            plt.bar(x=np.arange(self._max_class), height=1,width=1, color = self._color_list, tick_label = class_labels, edgecolor='#000000')
-        except:
             plt.bar(left=np.arange(self._max_class), height=[1 for i in range(self._max_class)],width=1, color = self._color_list, tick_label = class_labels, edgecolor='#000000')
+        except:
+            plt.bar(x=np.arange(self._max_class), height=1,width=1, color = self._color_list, tick_label = class_labels, edgecolor='#000000')
+            
 
         plt.title('Color pallete for classes')
         plt.show()

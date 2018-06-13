@@ -26,6 +26,10 @@ class _fit_in_memory:
         last_block_row_count = self._nrows%max_number_of_rows
         
         total_blocks = int(np.ceil(self._nrows/max_number_of_rows))
+
+        if total_blocks == 1:
+            list_of_partition = list([[0,self._nrows]])
+            return list_of_partition
         
         list_of_partition = list()
         
