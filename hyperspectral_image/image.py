@@ -13,8 +13,12 @@ class image:
         """
         Function locates hyperspectral image in disk. It does not load
         entire image into memory.
-
-        img_path : path to IMAGE_NAME.hdr' file of aviris image 
+        
+        Args:
+            img_path (string): path to IMAGE_NAME.hdr' file of aviris image 
+            
+        Returns:
+            reference : image class object
 
         """
         self._read_only_image = open_image(img_path)
@@ -84,7 +88,6 @@ class image:
 
     @property
     def size(self):
-        """
-        Returns number of rows, columns and bands
-        """
+        """Returns number of rows, columns and bands"""
+        
         return (self._img_height, self._img_width, self._img_bands)

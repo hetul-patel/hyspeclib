@@ -8,6 +8,13 @@ import numpy as np
 class _fit_in_memory:
     
     def __init__(self,img_path, available_memory_gb = 2 ):
+        """
+        This module returns the block of images which
+        can be fit into available memory for processing
+
+        :param img_path: Path to preprocessed image
+        :param available_memory_gb: Maximum memory allowed for processing
+        """
         
         self._img = open_image(img_path)
         self._available_memory_bytes = available_memory_gb * 10**9
@@ -18,6 +25,13 @@ class _fit_in_memory:
         
         
     def patitions(self):
+
+        """
+
+        :return: List of starting starting and ending rows for each block
+        not larger in size than available memory
+
+        """
         
         size_of_row_bytes = self._ncols * self._nbands * self._sample_size
         

@@ -7,6 +7,12 @@ import matplotlib.pyplot as plt
 class separability_analysis:
 
     def __init__(self,dataset_path):
+        """
+        Performs JM-Distance based separability analysis
+        on selected dataset using selected bands
+
+        :param dataset_path: path to training dataset file (.csv)
+        """
 
         self._data = pd.read_csv(dataset_path, header=None)
 
@@ -29,6 +35,14 @@ class separability_analysis:
             self._corr_vectors.append(np.array(self._classwise_groups.get_group(i+1).corr()))
 
     def _uncorrelated_bands(self,class_one, class_two, bands):
+        """
+        Returns list of uncorrelated bands out of all bands
+
+        :param class_one: number of first class
+        :param class_two: number of second class
+        :param bands: list of all bands
+        :return: list of uncorrelated bands
+        """
     
         freq = np.zeros((self._total_bands),dtype=np.int)
         
@@ -48,6 +62,17 @@ class separability_analysis:
         return new_bands
 
     def _jm(self,class_1, class_2, reduced_bands):
+
+        """
+        Calculated the class to class JM Distance for given
+        set of bands
+
+        :param class_1: Number of first class
+        :param class_2: Number of second class
+        :param reduced_bands: Bands to be used for JM Disatance calculation
+        :return: JM Distance between 0 and 1.414
+        """
+
     
         bands = self._uncorrelated_bands(class_1,class_2,reduced_bands)
 
@@ -72,6 +97,12 @@ class separability_analysis:
         return jm_dist
 
     def JM_distance_mat(self, bands):
+        """
+        Visualisation of JM Distance between all pairs of classes
+
+        :param bands: List of reduced bands
+        :return: Class to class JM Distance in sorted order
+        """
 
         size = self._n_classes
 

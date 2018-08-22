@@ -12,6 +12,14 @@ import numpy.linalg as lin
 class prepare_training_data:
 
     def __init__(self,img_source_dir="",save_path="",noisy_bands=None):
+        """
+        This module is useful for preparing training dataset from envi images named as class labled to be used.
+
+        :param img_source_dir: Path to directory where each image subset is saved
+        :param save_path: Path where you want to save the final output csv file
+        :param noisy_bands: List of noisy bands to be removed while preparing training dataset
+
+        """
 
         self._img_source = img_source_dir
         self._save_path = save_path

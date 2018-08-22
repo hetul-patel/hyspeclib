@@ -13,6 +13,13 @@ import os
 class preprocessing:
     
     def __init__(self, img_path, save_directory, available_memory_gb):
+        """
+        Automatic preprocessing of raw image including removal of noisy bands, non-vegetation are removal and null fills handling
+
+        :param img_path: Path to raw image
+        :param save_directory: Path to directory where processed images will be saved
+        :param available_memory_gb: Maximum possible memory for processing image in ram
+        """
         
         self._max = available_memory_gb
         self._img_path = img_path
@@ -44,6 +51,19 @@ class preprocessing:
     
     def perform(self, ndvi_threshold = 125, data_ignore_value = -9999. , NIR = 90 , RED = 55, min_threshold = 0, max_threshold = 1, noisy_bands=None  ):
         
+        """
+
+        Module for identification of noisy bands in image and remove them from image.
+
+        :param ndvi_threshold: maximum ndvi allowed for non-vegetation areas
+        :param data_ignore_value: Value used for filling null pixels specified in header file
+        :param NIR: Band number to be considered as NIR
+        :param RED: Band number to be considered as RED
+        :param min_threshold: Initial value of maximum reflectance possible
+        :param max_threshold: Initial value of minimum reflectance possible
+        :param noisy_bands: List of noisy bands if not specified than list will be identified automatically
+        """
+
         img  = read_image(self._img_path)
 
         if noisy_bands == None:
@@ -64,7 +84,7 @@ class preprocessing:
             
             sub_image = img.sub_image()[each_partion[0]:each_partion[1],:,retained_bands]
 
-            sub_image[:,noisy_bands] = 0
+            #sub_image[:,:,noisy_bands] = 0
                         
             for index_row, each_row in enumerate(sub_image):
                 

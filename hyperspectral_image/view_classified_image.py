@@ -10,6 +10,17 @@ class view_classified_image:
 
     def __init__(self, classified_image_path, class_labels=None ,color_list=None):
 
+        """Initiates an object for viewing classified image.
+
+        Args:
+            classified_image_path (string): path to csv file which contains class labels for each pixel 
+            class_labels (list): List of crop names
+            color_list (list) : List of colors to plot for each crop 
+
+        Returns:
+            None : Color pallete for reference 
+        
+        """
 
         self._classified_img = np.array(pd.read_csv(classified_image_path, header=None))
 
@@ -45,6 +56,17 @@ class view_classified_image:
         plt.show()
 
     def _color_rgb_list(self,color_list):
+        """converts hex color code into R,G,B triplets
+
+        Args:
+            color_list (list): List of hex color strings
+            param2 (str): The second parameter.
+
+        Returns:
+            list: list of r,g,b triplets
+
+        """
+
         color_rgb = list()
 
         for color_hex in color_list:
@@ -58,7 +80,18 @@ class view_classified_image:
 
 
     def show_and_save(self, save_color_img_path):
-        
+        """Displays classified image and save it on disk. 
+
+        Use %matplotlib tk to load image in separate window.
+
+        Args:
+            save_color_img_path (string): Store colored classified image here.
+
+        Returns:
+            None: Image is displayed
+
+        """
+
         cmap , norm = mt.colors.from_levels_and_colors(levels=np.arange(1,self._max_class+1,1),colors=self._color_list[1:],extend='neither')
 
         plt.figure(figsize=(self._classified_img.shape[1]//50,self._classified_img.shape[0]//50))
@@ -78,6 +111,17 @@ class view_classified_image:
         return img_arr
 
     def overlay_on_raw_img(self, path_to_raw_img):
+        """
+        Args:
+            path_to_raw_img (strinf): Path to the actual image used for classification
+
+            use %matplotlib tk for opening image in separate window.
+
+        Returns:
+            None: Open classification map on top of original image.
+
+        """
+
 
         raw_img = read_image(path_to_raw_img)
 

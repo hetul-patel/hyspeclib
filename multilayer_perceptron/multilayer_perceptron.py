@@ -8,8 +8,37 @@ from sklearn.model_selection import train_test_split as ttspilt
 
 
 class multilayer_perceptron:
-    """docstring for multilayer_perceptron."""
-    def __init__(self, n_nodes=None,available_memory_gb=2,learning_rate=0.01,batch_size=32,n_iter=50):
+    """This module includes functions for defining, training,testing, finetuning network and 
+        predict classes pixel by pixel for hyperspectral image.
+    """
+
+    def __init__(self, n_nodes=[392,150,100,50,11],available_memory_gb=2,learning_rate=0.01,batch_size=32,n_iter=50):
+        """Define network architecture.
+        
+        Args:
+            n_nodes (list): array of ints where first and last int values 
+                        represent input chennels and number of crops respectievly.
+                        Other int values defines hidden nodes in order
+
+                        for e.g. default value of [392,150,100,50,11] builds network
+                        with 392 input chennels, 3 hidden layers and 11 output lables.
+
+            available_memory_gb (float) : important when running on low memory system. 
+                        Only part of image which can be fit in specified memory is loaded
+                        and processed and sent back to disk.
+
+
+        
+            learning_rate (float): constant learning rate for network training
+
+            batch_size (int) :  number of pixels to be used as mini batch at a time
+
+            n_iter(int) : maximum number of iteration to run before training.
+
+
+        """
+
+
         # Network Parameters
         self._n_layer = len(n_nodes)-1
 
@@ -44,6 +73,16 @@ class multilayer_perceptron:
 
     # Create model
     def _multilayer_perceptron(self,_X, _weights, _biases, _dropout):
+
+        """Builds a neural network with specified layers anf nodes
+
+        :param _X: Input layer
+        :param _weights: List of weights
+        :param _biases: List of biases
+        :param _dropout: Optional dropout ratio
+        :return: list of network layers
+
+        """
         print(_X)
 
         layers = list()
@@ -86,6 +125,14 @@ class multilayer_perceptron:
         self._saver = tf.train.Saver()
 
     def train_testing_data(self,dataset_path,titles,test_size=0.10):
+        """This function load training data file from specified location and splits it into
+            training and testing parts.
+
+        :param dataset_path: path to .csv file containing the spectral profile and crop label
+        :param titles: list of crop names
+        :param test_size: proportion of dataset to be used as blind site data
+        :return: None
+        """
         cols = list([str(i) for i in range(self._n_input)])
         cols.append('label')
 
@@ -96,6 +143,15 @@ class multilayer_perceptron:
         self._n_classes = self._n_classes
 
     def train_test_balanced_data(self, dataset_path, titles, array_of_pixels_per_class = []):
+        """This function defines training set with specified number of samples
+            in each class and other samples are added to blind site data.
+
+        :param dataset_path: path to .csv file containing the spectral profile and crop label
+        :param titles: list of crop names
+        :param array_of_pixels_per_class: array of ints with number of samples to be used for each class in training set as specified by this array
+        :return: none
+
+        """
 
         if len(array_of_pixels_per_class) < self._n_classes:
             print('Please specify count of training site pixels for each class.')
@@ -130,7 +186,14 @@ class multilayer_perceptron:
 
     def _train_validation_split( self, train=0.7, reduced_bands=False, not_selected=[] ):
 
-        """ K fold cross validation data function """
+        """Returns training samples and validation samples for training phase
+
+        :param train: proportion of training dataset to be used for actual training
+        :param reduced_bands: True if subset of bands are used
+        :param not_selected: list of bands not selected after band reduction
+        :return: train and test vectors with one hot encoded class labels.
+
+        """
 
         np.random.seed(0)
         np.random.shuffle(self._data_set_array)
@@ -166,6 +229,13 @@ class multilayer_perceptron:
 
     def _randomize_test_data(self,reduced_bands=False,not_selected=[]):
 
+        """Randomly suffle test data / blind site data
+
+        :param reduced_bands: True if reduced bands are used
+        :param not_selected: list of bands not selected after band reduction
+        :return: Randomly suffled test data / blind site data
+        """
+
         np.random.seed(0)
 
         data = self._test_data_set_array
@@ -186,6 +256,19 @@ class multilayer_perceptron:
         return test_instances, test_one_hot_vectors
 
     def train_model(self,best_model_path,iterations = 10,lr = 0.01,reduced_bands=False,selected=[],early_stopping=False):
+
+        """
+        Performs back propagation algorithm with mini batch strategy on training data set
+
+        :param best_model_path: path where you want to save the model with best validation accuracy
+        :param iterations: number of times models sees entire data set
+        :param lr: learning rate
+        :param reduced_bands: True if reduced bands are used
+        :param selected: list of bands selected after band reduction
+        :param early_stopping: True if you wish to stop learning process early if model does not improve for after some epochs
+
+        :return: trained models's overall training and validation accuracy
+        """
 
 
         avg_train = 0
@@ -294,6 +377,13 @@ class multilayer_perceptron:
         print('\n\n-------------------------------------------------------\n\n')
 
     def _kappa_evaluation(self,confusion_mat):
+        """
+        Returns kappa coefficient from given confusion matrix
+
+        :param confusion_mat: confusion matrix
+        :return: kappa coefficient
+
+        """
 
         N = np.sum(confusion_mat)
         nrows = confusion_mat.shape[0]
@@ -307,64 +397,76 @@ class multilayer_perceptron:
         return nominator / (N*N - denominator)
 
     def training_validation(self,path,reduced_bands=False, selected=[]):
-        """ Constructs confusion matrix by trained model for training sample"""
+        """Constructs confusion matrix by trained model for training sample
+
+        :param path: path to the trained model
+        :param reduced_bands: True if reduced bands are used
+        :param selected: List of bands selected after band reduction
+        :return: Training avg. accuracy, Kapp cofficient, Class wise accuracy and avg. class accuracy
+        """
 
         short_classes = self._short_classes
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
 
-        #try:
-        with tf.Session() as sess:
-            self._saver.restore(sess,path)
+        try:
+            with tf.Session() as sess:
+                self._saver.restore(sess,path)
 
-            new_train_instances, new_train_one_hot_vectors, _, _ = self._train_validation_split(train=0.7,reduced_bands=reduced_bands,not_selected=not_selected)
-
-
-            training_accuracy = sess.run(self._accuracy, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
-
-            confusion_matrix = sess.run(self._conf_mat, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
-
-            total_sample = [np.sum(confusion_matrix,axis=0)]
+                new_train_instances, new_train_one_hot_vectors, _, _ = self._train_validation_split(train=0.7,reduced_bands=reduced_bands,not_selected=not_selected)
 
 
-            print('\n----------Training site validation of model {}----------\n'.format(path.split('/')[-1]))
+                training_accuracy = sess.run(self._accuracy, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
 
-            print('Total training samples\n')
-            #print(total_sample)
-            print(pd.DataFrame(total_sample,columns=short_classes,index=['Total samples']))
+                confusion_matrix = sess.run(self._conf_mat, feed_dict={self._x: new_train_instances, self._y: new_train_one_hot_vectors })
 
-            print("\n1. Overall accuracy : {:.4f}\n".format(training_accuracy))
+                total_sample = [np.sum(confusion_matrix,axis=0)]
 
-            print('2. Confusion matrix: columns are prediction labels and the rows are the GT data\n')
 
-            print(pd.DataFrame(confusion_matrix,columns=short_classes,index=short_classes))
+                print('\n----------Training site validation of model {}----------\n'.format(path.split('/')[-1]))
 
-            class_wise_acc = list()
+                print('Total training samples\n')
+                #print(total_sample)
+                print(pd.DataFrame(total_sample,columns=short_classes,index=['Total samples']))
 
-            for i in range(len(confusion_matrix)):
-                if np.sum(confusion_matrix[:,i]) == 0:
-                    producer_acc = 1
-                else:
-                    producer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[:,i]),decimals=3)
-                if  np.sum(confusion_matrix[i]) == 0:
-                    consumer_acc = 0
-                else:
-                    consumer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[i]),decimals=3)
+                print("\n1. Overall accuracy : {:.4f}\n".format(training_accuracy))
 
-                class_wise_acc.append([producer_acc,consumer_acc])
-            print('\n3. Producer accuracy and Consumer accuracy:\n')
+                print('2. Confusion matrix: columns are prediction labels and the rows are the GT data\n')
 
-            print(pd.DataFrame(class_wise_acc,columns=(['Producer/Class acc','Consumer acc']),index=short_classes))
+                print(pd.DataFrame(confusion_matrix,columns=short_classes,index=short_classes))
 
-            print('\n4. Average accuracy : {:.4f}'.format(np.sum(np.array(class_wise_acc),axis=0)[0]/len(class_wise_acc)))
-            try:
-                print('\n5. Kapp cofficient : {:.4f}\n'.format( self._kappa_evaluation(confusion_matrix)))
-            except:
-                print('\n5. Kapp cofficient : undefined')
-        #except:
-           #print('Error : Please close any existing Tensorflow session and try again or restart Python Kernel')
+                class_wise_acc = list()
+
+                for i in range(len(confusion_matrix)):
+                    if np.sum(confusion_matrix[:,i]) == 0:
+                        producer_acc = 1
+                    else:
+                        producer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[:,i]),decimals=3)
+                    if  np.sum(confusion_matrix[i]) == 0:
+                        consumer_acc = 0
+                    else:
+                        consumer_acc = np.round(confusion_matrix[i][i] / np.sum(confusion_matrix[i]),decimals=3)
+
+                    class_wise_acc.append([producer_acc,consumer_acc])
+                print('\n3. Producer accuracy and Consumer accuracy:\n')
+
+                print(pd.DataFrame(class_wise_acc,columns=(['Producer/Class acc','Consumer acc']),index=short_classes))
+
+                print('\n4. Average accuracy : {:.4f}'.format(np.sum(np.array(class_wise_acc),axis=0)[0]/len(class_wise_acc)))
+                try:
+                    print('\n5. Kapp cofficient : {:.4f}\n'.format( self._kappa_evaluation(confusion_matrix)))
+                except:
+                    print('\n5. Kapp cofficient : undefined')
+        except:
+           print('Error : Please close any existing Tensorflow session and try again or restart Python Kernel')
 
     def blindsite_validation(self,path,reduced_bands=False, selected=[]):
-        """ Constructs confusion matrix by trained model for blind sample"""
+        """Constructs confusion matrix by trained model for blind site samples
+
+        :param path: path to the trained model
+        :param reduced_bands: True if reduced bands are used
+        :param selected: List of bands selected after band reduction
+        :return: Blind site avg. accuracy, Kapp cofficient, Class wise accuracy and avg. class accuracy
+        """
 
         short_classes = self._short_classes
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
@@ -473,7 +575,14 @@ class multilayer_perceptron:
         return list(np.sort(top_bands))
 
     def select_best_bands(self,model_path, reduced_bands = 40):
-        """ Returns selected, not selected bands """
+        """
+        Apply back traversal algorithm on trained network for selection of
+        subset of optimal bands from input bands.
+
+        :param model_path: Path to the pre trained model
+        :param reduced_bands: number of bands to be selected
+        :return: list of reduced bands.
+        """
 
         reduction_percentage = reduced_bands / self._n_input
 
@@ -497,6 +606,13 @@ class multilayer_perceptron:
         return selected, not_selected
 
     def _validation(self,instance, mean, t = 0.05):
+        """
+
+        :param instance: Spectral profile of sample
+        :param mean: Reference profile of predicted class label
+        :param t: maximum tolerance level(euclidian distance) for assigning predicted class label to sample
+        :return: True if euclidian distance between sample vector and reference vector in less than or equal to t else Flase.
+        """
 
         if np.mean(instance) == 0:
             return False
@@ -536,6 +652,17 @@ class multilayer_perceptron:
             return self._n_classes
 
     def _train_augmentation(self,image_path, model_path, correct_array, threshold=0.05, not_selected = [], save_data=False,save_directory=''):
+        """
+
+        :param image_path: Path to the image used for augmentation
+        :param model_path: Path to the pretrained model
+        :param correct_array: Array of number of samples added to augmented training set per class.
+        :param threshold: maximum tolerance level(euclidian distance) for assigning predicted class label to sample
+        :param not_selected: bands excluded after band reduction
+        :param save_data: True if you want to save augmented samples to .csv file
+        :param save_directory: Output directory where augmented dataset and classified image is saved.
+        :return: Array of number of samples added to augmented training set per class.
+        """
 
         img  = read_image(image_path)
 
@@ -626,6 +753,21 @@ class multilayer_perceptron:
 
     def increase_train_data(self,images,model_path,threshold,save_data=False,save_directory='', selected=[],merge_with_original=False):
 
+        """
+        Modules loads image part by part in memory, classifies block of image
+         and assign samples in augmented dataset if thresold is less than
+         specified value.
+
+        :param images: list of paths of images to be used for augmentation
+        :param model_path: Path to pre-trained model to be used for classification
+        :param threshold: maximum tolerance level(euclidian distance) for assigning predicted class label to sample
+        :param save_data: True if you want to save augmented samples to .csv file
+        :param save_directory: Output directory where augmented dataset and classified image is saved.
+        :param selected: List of bands selected after band reduction
+        :param merge_with_original: True if you want to combine actual training dataset with augmented dataset
+        :return: Array of number of samples added to augmented training set per class.
+        """
+
         not_selected = list(set(np.arange(self._n_input)) - set(selected))
 
         self._class_wise_mean = np.array(self._dataset.groupby(['label']).mean())
@@ -661,6 +803,17 @@ class multilayer_perceptron:
         return correct_array
 
     def classify_image(self,image_path,model_path,save_path, min_probability=0,selected=[]):
+        """
+        Classify image using trained model and save assigned class label to each
+        pixel in csv file.
+
+        :param image_path: Path to the image to be classified
+        :param model_path: Path to the model to be used for classification
+        :param save_path: Path to file which saves the classification mask
+        :param min_probability: Ignored
+        :param selected: List of bands selected for selected after band reduction
+        :return:
+        """
 
         print('-------------- Image classification is in pregress-----------------\n\n')
 

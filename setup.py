@@ -11,5 +11,5 @@ setup(
    author='Hetul V Patel',
    author_email='hetulvp@gmail.com',
    packages=['hyspeclib'],  #same as name
-   install_requires=['pandas', 'spectral', 'tensorflow'], #external packages as dependencies
+   install_requires=['numpy','pandas','sklearn', 'spectral', 'tensorflow'], #external packages as dependencies
 )

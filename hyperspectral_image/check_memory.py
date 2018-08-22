@@ -3,8 +3,13 @@ import psutil
 class check_memory:
 
     def check_image_before_load(self,image_dims):
-        """
-        Check if image can be fit into memory or not without loading it.
+        """Check if image can be fit into memory or not without loading it.
+
+        Args:
+            image_dims (array): H x W x C
+
+        Returns:
+            bool: The return value. True for success, False otherwise.
 
         """
 
@@ -17,8 +22,12 @@ class check_memory:
         """
         Returns available memory in RAM in desired unit.
 
-        unit : 'MB' for mega bytes, 'GB' for giga bytes, default bytes.
+        Args:
+            unit (string): 'MB' for mega bytes, 'GB' for giga bytes, default bytes.
 
+        Returns:
+            float: Free memory in ram in specified unit.
+            
         """
         free = psutil.virtual_memory().available
 

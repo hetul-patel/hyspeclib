@@ -13,6 +13,11 @@ import pandas as pd
 class pca_analysis:
     
     def __init__(self, image_directory_path=None, save_dir = None ):
+        """
+
+        :param image_directory_path: Path to where preprocessed images directory
+        :param save_dir: Path where PCA statistics should be saved
+        """
         
         if image_directory_path!=None:
             self._image_directory_path = image_directory_path
@@ -22,9 +27,14 @@ class pca_analysis:
             print('Total {} images found in directory.'.format(self._total_images))
     
     def _fetch_pca(self, image_path):
+        """Function calculates the eigen vectors and eigen values for given image
+
+        :param image_path: Image to perfrom PCA
+        :return: number of bands and PCA statistics
+        """
         
         t1 = time.time()
-        #print("Fetching file : "+ file_name)
+        print("Fetching file : "+ image_path)
         img = open_image(image_path)
         
         nbands = img.nbands
@@ -37,8 +47,14 @@ class pca_analysis:
     
     
     def _write_to_file(self, image_name, nbands, principal_component_analysis):
-        
-        #t1 = time.time()
+        """Write Eigen vectors and eigen values from each image in file
+
+        :param image_name: Image name
+        :param nbands: Number of principal components to be saved
+        :param principal_component_analysis: PCA statistics object returned from _fetch_pca method
+        :return: None
+        """
+        t1 = time.time()
 
         eigen_vectors = principal_component_analysis.eigenvectors
         eigen_values = principal_component_analysis.eigenvalues
@@ -54,10 +70,14 @@ class pca_analysis:
                     file.write(',' + str(np.round(np.real(component),decimals=4)))
                 file.write('\n')
 
-       # t2 = time.time() - t1
-        #print('Writing to disk complete... took {} seconds'.format(t2))
+        t2 = time.time() - t1
+        print('Writing to disk complete... took {} seconds'.format(t2))
         
     def perform(self):
+        """
+        Performs PCA on list of processed images one by one
+        stores the Eigen Vectors and Eigen values in csv file format
+        """
         
         try :
             
@@ -88,10 +108,24 @@ class pca_analysis:
     # Exploration
     
     def _fetch_array(self, image_stat):
+        """
+        Returns the array of eigen vectors from dataframe
+
+        :param image_stat: dataframe
+        :return: array of eigen vectors
+        """
         vectors = image_stat.drop(labels=[0,1], axis=1)
         return np.asarray(vectors), np.asarray(image_stat[1])        
             
     def _cumulative_sum_of_percentage(self, array_of_eigen_values, filepath):
+        """
+        Prints the eigen value, percentage variance explained and
+        cumulative sum of eigen value upto current pc
+
+        :param array_of_eigen_values: array of eigen values
+        :param filepath: Path to image for which current PCA statistics was calculated
+        :return: None
+        """
     
         cumulative_percentage = 0
         more_than_zero = True
@@ -118,6 +152,13 @@ class pca_analysis:
         print(out_df)
         
     def show_eigen_values(self, pca_result_directory):
+        """
+        Prints the eigen value, percentage variance explained and
+        cumulative sum of eigen value upto current pc
+
+        :param pca_result_directory: Path to saved PCA statistics .csv file
+
+        """
         
         files = glob.glob(pca_result_directory+'**/**.csv',recursive=True)
     
@@ -130,6 +171,16 @@ class pca_analysis:
             self._cumulative_sum_of_percentage(eigen_values,file)
             
     def _eigen_component_contribution(self,vectors, eigen_values, top, max_pc = 2):
+
+        """
+        Functions returns the top N bands contributed in top M principal components
+
+        :param vectors: Eigen vectors
+        :param eigen_values: Eigen Values
+        :param top: Maximum number of bands to be considered ( N )
+        :param max_pc: Top M pcs to be selected for finding contribution of each band
+        :return: list of bands
+        """
     
         sorted_bands = list()
     
@@ -157,6 +208,12 @@ class pca_analysis:
     
     
     def _band_frequency_map(self,bands):
+        """
+        Returns number of times each bands occured in top bands for each image.
+
+        :param bands: List of bands for which frequency of occurence is calculated
+        :return: List of number of occurrences for each band.
+        """
         sorted_bands = np.sort(bands, axis=None)
         
         bands_occurences = dict()
@@ -169,6 +226,15 @@ class pca_analysis:
         return bands_occurences
     
     def plot_band_frequncy(self,pca_result_directory, top, max_pc = 2, min_frequency=None):
+        """
+        Plot the diagram of frequency of occurrence in top N bands of every image.
+
+        :param pca_result_directory: Directory where PCA statistics csv file is saved
+        :param top: Maximum number of bands to be considered ( N )
+        :param max_pc: Number of top PCs to be selected for finding contribution of each band
+        :param min_frequency: Minimum number of occurrences for plotting.
+        :return: None
+        """
         
         files = glob.glob(pca_result_directory+'**/**.csv',recursive=True)
         
@@ -208,7 +274,17 @@ class pca_analysis:
         
     
     def band_reduction(self,pca_result_directory,top,min_frequency, max_pc = 2):
-        
+        """
+        Module returns the optimal number of band based on PCA
+        statistics calculated on different parts of images.
+
+        :param pca_result_directory: Directory where PCA statistics csv file is saved
+        :param top: Maximum number of bands to be considered ( N )
+        :param max_pc: Number of top PCs to be selected for finding contribution of each band
+        :param min_frequency: Minimum number of occurrences for plotting.
+        :return:
+        """
+
         files = glob.glob(pca_result_directory+'**/**.csv',recursive=True)
         
         list_of_bands = list()
