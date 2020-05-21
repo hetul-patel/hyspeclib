@@ -41,3 +41,14 @@ RAM (Computer memory), images are processed in smaller blocks so that
 entire algorithm can run on entire image without memory issues.
 Colourful classification mask can be generated and saved for hyperspectral
 image to visualise predicted class for given region of image.
+
+## Citation
+
+@INPROCEEDINGS{8897897,  
+author={H. {Patel} and N. {Bhagia} and T. {Vyas} and B. {Bhattacharya} and K. {Dave}},  
+booktitle={IGARSS 2019 - 2019 IEEE International Geoscience and Remote Sensing Symposium},   
+title={Crop Identification and Discrimination Using AVIRIS-NG Hyperspectral Data Based on Deep Learning Techniques},   
+year={2019},  
+volume={},  
+number={},  
+pages={3728-3731},}
